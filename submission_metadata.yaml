@@ -1,0 +1,12 @@
+team_name: ""
+team_leader: "Arham Boonlia"
+github_repo: ""
+sandbox_link: ""
+ai_tools_used: "Claude AI (ideation and code review), Antigravity (agentic coding IDE)"
+model_used: "paraphrase-MiniLM-L3-v2 (sentence-transformers)"
+ranking_runtime_seconds: 67.8
+candidates_processed: 100000
+candidates_disqualified: 48796
+honeypots_detected: 5
+validator_status: "PASSED"
+compute_constraints_met: true

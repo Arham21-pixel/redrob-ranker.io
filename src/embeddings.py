@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 # Model singleton – loaded once per process
 # ---------------------------------------------------------------------------
-_MODEL_NAME = "all-MiniLM-L6-v2"
+_MODEL_NAME = "paraphrase-MiniLM-L3-v2"
 _model: SentenceTransformer | None = None
 
 
@@ -42,11 +42,19 @@ def build_candidate_text(candidate: dict) -> str:
     Combine a candidate's most semantically rich text fields into a single
     narrative string that the encoder can embed.
 
-    Fields used (in order):
-      1. profile.headline        – one-line signal of current role
-      2. profile.summary         – candidate's own description of themselves
-      3. career_history[].title + description  – what they actually did
-      4. skills[].name           – explicit skill tokens
+    TOKEN BUDGET DESIGN (model max = 256 tokens):
+    Text is ordered highest-signal-first so that when the model truncates
+    at 256 tokens, it retains the most important content:
+      1. Skills (explicit keywords, ~30-50 tokens) — always fits
+      2. profile.headline (~15 tokens) — always fits
+      3. profile.summary (~80 tokens) — fits in most cases
+      4. career_history[].title only (no long descriptions) — compact
+      5. current_title + current_company for role context
+
+    Career descriptions are intentionally excluded from the embedding text
+    — they are long (200-400 tokens each) and push skills/headline out of
+    the 256-token window. The disqualifier and behavioral signals capture
+    career-level signals separately.
 
     Parameters
     ----------
@@ -58,32 +66,11 @@ def build_candidate_text(candidate: dict) -> str:
     str
         A whitespace-normalised narrative string ready for encoding.
     """
-    parts: List[str] = []
+    parts: list[str] = []
 
     profile = candidate.get("profile", {})
 
-    # 1. Headline (short but high-signal)
-    headline = (profile.get("headline") or "").strip()
-    if headline:
-        parts.append(headline)
-
-    # 2. Professional summary
-    summary = (profile.get("summary") or "").strip()
-    if summary:
-        parts.append(summary)
-
-    # 3. Career history – title prefixed to each role description
-    for role in candidate.get("career_history", []):
-        title = (role.get("title") or "").strip()
-        desc = (role.get("description") or "").strip()
-        if title and desc:
-            parts.append(f"{title}: {desc}")
-        elif desc:
-            parts.append(desc)
-        elif title:
-            parts.append(title)
-
-    # 4. Skill names joined as a comma-separated token block
+    # 1. Skill names — highest JD-match signal, shortest tokens (always in window)
     skill_names = [
         s["name"].strip()
         for s in candidate.get("skills", [])
@@ -91,6 +78,33 @@ def build_candidate_text(candidate: dict) -> str:
     ]
     if skill_names:
         parts.append("Skills: " + ", ".join(skill_names))
+
+    # 2. Current role context (very compact)
+    current_title   = (profile.get("current_title") or "").strip()
+    current_company = (profile.get("current_company") or "").strip()
+    if current_title and current_company:
+        parts.append(f"{current_title} at {current_company}")
+    elif current_title:
+        parts.append(current_title)
+
+    # 3. Headline
+    headline = (profile.get("headline") or "").strip()
+    if headline:
+        parts.append(headline)
+
+    # 4. Professional summary (truncated to 300 chars to stay in budget)
+    summary = (profile.get("summary") or "").strip()
+    if summary:
+        parts.append(summary[:300])
+
+    # 5. Career role titles only (no long descriptions to avoid overflow)
+    role_titles = [
+        (role.get("title") or "").strip()
+        for role in candidate.get("career_history", [])
+        if (role.get("title") or "").strip()
+    ]
+    if role_titles:
+        parts.append("Experience: " + "; ".join(role_titles))
 
     return " ".join(parts)
 
