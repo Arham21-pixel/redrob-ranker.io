@@ -33,4 +33,4 @@ python validate_submission.py outputs/submission.csv
 - Validator: PASSED (0 errors)
 
 ## Sandbox
-[SANDBOX_LINK_PLACEHOLDER]
+Live demo: https://redrob-rankerio.streamlit.app/
