@@ -1,7 +1,7 @@
-team_name: ""
+team_name: "Rising High"
 team_leader: "Arham Boonlia"
-github_repo: ""
-sandbox_link: ""
+github_repo: "https://github.com/Arham21-pixel/redrob-ranker"
+sandbox_link: "https://redrob-rankerio.streamlit.app/"
 ai_tools_used: "Claude AI (ideation and code review), Antigravity (agentic coding IDE)"
 model_used: "paraphrase-MiniLM-L3-v2 (sentence-transformers)"
 ranking_runtime_seconds: 67.8
